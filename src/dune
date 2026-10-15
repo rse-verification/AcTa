@@ -1,0 +1,11 @@
+(library
+ (name Acta)
+ (public_name frama-c-acta.core)
+ (flags -open Frama_c_kernel :standard -w -50-6-27-39-36)
+ (libraries frama-c.kernel))
+
+(plugin
+ (optional)
+ (name acta)
+ (libraries frama-c-acta.core)
+ (site (frama-c plugins)))
