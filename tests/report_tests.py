@@ -1,6 +1,7 @@
 """Check AcTa's report contract with real CBMC and deliberately bad output."""
 
 import json
+import os
 import stat
 import subprocess
 import sys
@@ -16,13 +17,13 @@ with tempfile.TemporaryDirectory(prefix="acta report ") as directory:
     report_path = root / "verification report.json"
     raw = root / "cbmc output.json"
 
-    def run(code, *, unwind=10, cbmc="cbmc", extras=()):
+    def run(code, *, unwind=10, cbmc="cbmc", extras=(), harness_path=harness):
         source.write_text(code)
         report_path.write_text('{"status":"passed","stale":true}')
         command = [
             "frama-c", "-no-autoload-plugins", "-load-module", PLUGIN,
             "-acta", "-main", "compute", "-acta-run-cbmc", "-acta-report", str(report_path),
-            "-acta-out", str(harness), "-acta-cbmc-out", str(raw),
+            "-acta-out", str(harness_path), "-acta-cbmc-out", str(raw),
             "-acta-cbmc-path", str(cbmc), "-acta-cbmc-unwind", str(unwind),
             "-acta-cbmc-args", json.dumps(list(extras)), str(source),
         ]
@@ -78,6 +79,28 @@ with tempfile.TemporaryDirectory(prefix="acta report ") as directory:
 
     completed, result = run(good, cbmc=root / "missing cbmc")
     assert completed.returncode != 0 and result["status"] == "error", (completed, result)
+
+    completed, result = run(good, harness_path=root / "missing directory" / "harness.c")
+    assert completed.returncode != 0 and result["status"] == "error", (completed, result)
+
+    # Reject collisions before cleanup or error reporting can change the input.
+    alias = root / "input alias.c"
+    alias.symlink_to(source)
+    hardlink = root / "input hardlink.c"
+    os.link(source, hardlink)
+    for option, destination in (
+        ("-acta-report", source), ("-acta-out", source), ("-acta-cbmc-out", source),
+        ("-acta-report", alias), ("-acta-report", hardlink), ("-acta-report", harness),
+    ):
+        source.write_text(good)
+        completed = subprocess.run([
+            "frama-c", "-no-autoload-plugins", "-load-module", PLUGIN,
+            "-acta", "-main", "compute", "-acta-run-cbmc", "-acta-report", str(report_path),
+            "-acta-out", str(harness), "-acta-cbmc-out", str(raw),
+            option, str(destination), str(source),
+        ], capture_output=True, text=True, timeout=30)
+        assert completed.returncode != 0 and source.read_text() == good, (option, completed)
+        assert "Output paths must be distinct" in completed.stdout + completed.stderr, completed
 
     # The legacy runner must propagate failures too, including paths with spaces.
     fake.write_text("#!/bin/sh\nexit 10\n")

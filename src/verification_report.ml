@@ -21,9 +21,9 @@ let write path value =
     Yojson.Basic.pretty_to_channel channel value;
     output_char channel '\n')
 
-let error ~entry ~harness ~source ~output ~unwind message =
+let error ?(exit_code = `Null) ~entry ~harness ~source ~output ~unwind message =
   report ~entry ~harness ~source ~output ~unwind ~status:"error"
-    ~exit_code:`Null ~properties:0 ~proved:0 ~failed:[] ~error:(`String message)
+    ~exit_code ~properties:0 ~proved:0 ~failed:[] ~error:(`String message)
 
 let flags = [
   "--trace"; "--bounds-check"; "--pointer-check"; "--pointer-overflow-check";
@@ -86,7 +86,5 @@ let run ~cbmc ~extra ~entry ~harness ~source ~output ~unwind =
       ~status:(if passed then "passed" else "failed") ~exit_code:(`Int exit_code)
       ~properties ~proved ~failed ~error:message
   with (Yojson.Json_error _ | Type_error _ | Invalid_argument _ | Sys_error _) as exc ->
-    let value = error ~entry ~harness ~source ~output ~unwind (Printexc.to_string exc) in
-    match value with
-    | `Assoc fields -> `Assoc (("cbmc_exit_code", `Int exit_code) :: List.remove_assoc "cbmc_exit_code" fields)
-    | _ -> assert false
+    error ~exit_code:(`Int exit_code) ~entry ~harness ~source ~output ~unwind
+      (Printexc.to_string exc)

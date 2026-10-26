@@ -55,8 +55,9 @@ Useful options:
 
 ## Verification report
 
-Consumers such as AutoDeduct can ask AcTa to generate the harness, run CBMC,
-and write a versioned JSON report in one invocation:
+Consumers such as [AutoDeduct](https://github.com/rse-verification/auto-deduct)
+can ask AcTa to generate the harness, run CBMC, and write a versioned JSON
+report in one invocation:
 
 ```sh
 frama-c -acta -main compute input.c \
@@ -99,6 +100,8 @@ reaches the plugin, report mode also writes an `error` report for generation or
 execution errors; Frama-C errors before the plugin runs may leave no report.
 Consumers should clear old reports before each invocation, check the process
 exit status, and validate the report version and requested target.
+The harness, report, CBMC output and stderr paths must be distinct and separate
+from the input files; AcTa rejects collisions before cleaning or writing them.
 
 ## Regression Tests
 

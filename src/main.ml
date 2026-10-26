@@ -51,6 +51,27 @@ let render_harness harness_func =
   Format.pp_print_flush fmt ();
   harness_buff
 
+let validate_output_paths inputs outputs =
+  let rec canonical path =
+    try Unix.realpath path with Unix.Unix_error (Unix.ENOENT, _, _) ->
+      Filename.concat (canonical (Filename.dirname path)) (Filename.basename path)
+  in
+  let same_file left right =
+    canonical left = canonical right ||
+    try
+      let left = Unix.stat left and right = Unix.stat right in
+      left.Unix.st_dev = right.Unix.st_dev && left.Unix.st_ino = right.Unix.st_ino
+    with Unix.Unix_error (Unix.ENOENT, _, _) -> false
+  in
+  let rec check = function
+    | [] -> ()
+    | path :: rest ->
+        if List.exists (same_file path) (inputs @ rest) then
+          Self.abort "Output paths must be distinct and separate from inputs: %s" path;
+        check rest
+  in
+  check outputs
+
 let run () =
   if Enabled.get () then begin
     let entry = Kernel.MainFunction.get_function_name () in
@@ -64,6 +85,10 @@ let run () =
       Verification_report.write report_path value;
       report_written := true
     in
+    (* Validate before error reporting too, so an invalid report cannot replace an input. *)
+    if report_path <> "" then
+      validate_output_paths (List.map Filepath.to_string (Kernel.Files.get ()))
+        [source; report_path; output; output ^ ".stderr.log"];
     try
       if report_path <> "" then begin
         List.iter (fun path -> if Sys.file_exists path then Sys.remove path)
@@ -76,14 +101,13 @@ let run () =
         invalid_arg "-acta-cbmc-args requires -acta-report";
       let translator = new acsl2cbmc in
       let { harness_functions } = translator#translate (Ast.get ()) in
-      let target = Kernel.MainFunction.get_function_name () in
       let harness_func =
-        match List.find_opt (fun hf -> hf.called_func = target) harness_functions with
+        match List.find_opt (fun hf -> hf.called_func = entry) harness_functions with
         | Some hf -> hf
         | None ->
             Self.abort
               "No ACSL contract found for the selected entry function '%s'"
-              target
+              entry
       in
       let harness_buff = render_harness harness_func in
       let source_fname = get_source_file () in
