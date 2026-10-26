@@ -39,6 +39,16 @@ with tempfile.TemporaryDirectory(prefix="acta report ") as directory:
     assert result["cbmc_exit_code"] == 0 and result["properties"] == result["proved"] > 0, result
     assert result["failed_properties"] == [] and isinstance(json.loads(raw.read_text()), list), result
 
+    # Frama-C 33 represents both conditional guards as predicates.
+    for postcondition in (
+        "\\result == (\\old(x) > 0 ? 1 : 0)",
+        "(\\old(x) > 0 ? \\result == 1 : \\result == 0)",
+    ):
+        code = (f"/*@ requires -2 <= x <= 2; ensures {postcondition}; */\n"
+                "int compute(int x) { return x > 0; }\n")
+        completed, result = run(code)
+        assert completed.returncode == 0 and result["status"] == "passed", (completed, result)
+
     completed, result = run(good.replace("\\result == x + 1", "\\result == x + 2"))
     assert completed.returncode != 0 and result["status"] == "failed", (completed, result)
     assert result["cbmc_exit_code"] == 10 and result["failed_properties"], result
@@ -51,6 +61,7 @@ with tempfile.TemporaryDirectory(prefix="acta report ") as directory:
 
     for code in ("int compute(int x) { return x; }\n",
                  "/*@ requires x >= 0; */\nint compute(int x) { return x; }\n",
+                 "/*@ requires \\aligned(&x, 4); ensures \\result == x; */\nint compute(int x) { return x; }\n",
                  "/*@ predicate positive(integer x) = x > 0; */\n"
                  "/*@ requires positive(x); ensures \\result == x; */\nint compute(int x) { return x; }\n"):
         completed, result = run(code)

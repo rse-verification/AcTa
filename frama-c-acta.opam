@@ -14,7 +14,7 @@ depends: [
   "dune" {>= "3.13"}
   "ocaml" {>= "4.14"}
   "yojson"
-  "frama-c" {>= "31" & < "32"}
+  "frama-c" {>= "33" & < "34"}
   "odoc" {with-doc}
 ]
 build: [

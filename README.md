@@ -27,6 +27,9 @@ Saida:
 
 ## Build
 
+Use Frama-C 33 in the active opam switch. AcTa must be built and loaded with
+the same Frama-C installation.
+
 ```sh
 dune build
 ```

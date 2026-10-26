@@ -40,9 +40,9 @@ module HarnessPrinter = struct
   module Make (Name : FunctionNameProvider) : PrinterExtension =
   functor (X : PrinterClass) ->
   struct
-    class printer : Printer.extensible_printer =
+    class printer () : Printer.extensible_printer =
       object (self)
-        inherit X.printer as super
+        inherit X.printer () as super
 
         val context_func_name = Name.name
         val mutable let_var_defs = Logic_var.Hashtbl.create 10
@@ -165,8 +165,6 @@ module HarnessPrinter = struct
           | Tcomprehension _
           | Trange _ ->
               unsupported "advanced ACSL terms"
-          | _ ->
-              unsupported "advanced ACSL terms"
 
         method private pred_bin_op fmt p1 p2 op_string =
           Format.fprintf fmt "%a %s %a" self#predicate p1 op_string self#predicate p2
@@ -206,7 +204,8 @@ module HarnessPrinter = struct
           | Pseparated _
           | Papp _
           | Pobject_pointer _
-          | Pvalid_function _ ->
+          | Pvalid_function _
+          | Paligned _ ->
               unsupported "advanced ACSL predicates"
       end
   end
@@ -245,7 +244,6 @@ let rec old_vars_in_term
   match term.term_node with
   | TConst _
   | TSizeOf _
-  | TSizeOfStr _
   | TAlignOf _
   | Tnull
   | Ttype _ ->
@@ -268,7 +266,7 @@ let rec old_vars_in_term
       old_vars_in_term (old_vars_in_term acc in_old t1) in_old t2
   | Tif (p, t1, t2) ->
       old_vars_in_term
-        (old_vars_in_term (old_vars_in_term acc in_old p) in_old t1)
+        (old_vars_in_term (old_vars_in_predicate acc in_old p) in_old t1)
         in_old
         t2
   | Tat (inner, label) ->
@@ -346,6 +344,7 @@ and old_vars_in_predicate
   | Pvalid_function t ->
       old_vars_in_term acc in_old t
   | Pfresh (_, _, t1, t2)
+  | Paligned (t1, t2)
   | Prel (_, t1, t2) ->
       old_vars_in_term (old_vars_in_term acc in_old t1) in_old t2
   | Pand (p1, p2)
@@ -358,7 +357,7 @@ and old_vars_in_predicate
       old_vars_in_predicate acc in_old p
   | Pif (p, p1, p2) ->
       old_vars_in_predicate
-        (old_vars_in_predicate (old_vars_in_term acc in_old p) in_old p1)
+        (old_vars_in_predicate (old_vars_in_predicate acc in_old p) in_old p1)
         in_old
         p2
   | Pat (inner, label) ->
