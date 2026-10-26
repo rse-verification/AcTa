@@ -53,7 +53,56 @@ Useful options:
 - `-acta-run-cbmc`: run CBMC after generating the harness.
 - `-acta-cbmc-out <file>`: store CBMC output in `<file>`.
 
+## Verification report
+
+Consumers such as AutoDeduct can ask AcTa to generate the harness, run CBMC,
+and write a versioned JSON report in one invocation:
+
+```sh
+frama-c -acta -main compute input.c \
+  -acta-run-cbmc -acta-out harness.c \
+  -acta-report acta-report.json -acta-cbmc-out cbmc.json \
+  -acta-cbmc-unwind 10 -acta-cbmc-args '["--trace", "-I", "include directory"]'
+```
+
+Report mode invokes CBMC with an argument vector, keeps JSON stdout separate
+from `cbmc.json.stderr.log`, and enables unwinding assertions. Extra arguments
+use a JSON string array so spaces and punctuation remain literal. Do not combine
+`-acta-cbmc-opts` with `-acta-report`; that option retains the legacy shell-based
+interface for standalone use.
+
+Allowed extra arguments are `--trace`, `--bounds-check`, `--pointer-check`,
+`--pointer-overflow-check`, `--signed-overflow-check`, `--unsigned-overflow-check`,
+`--div-by-zero-check`, `--float-overflow-check`, `--nan-check`, `--slice-formula`,
+`--sat-preprocessor`, `--no-sat-preprocessor`, and attached `-D`/`-U` definitions.
+`-I`, `--object-bits`, `--verbosity`, and `--unwindset` each take the next argument
+as their value. Options that retarget the harness, select properties, disable
+assertions, bypass full unwinding, or add source files are rejected.
+
+The JSON object has `schema_version: 1` and these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `status` | `passed`, `failed`, or `error` |
+| `entry_point`, `harness_function`, `harness_file` | Verification target |
+| `unwind` | Requested positive loop bound |
+| `cbmc_output_file`, `cbmc_exit_code` | Raw CBMC evidence and exit code; exit is null if CBMC did not run |
+| `properties`, `proved`, `failed_properties` | Property counts and unsuccessful property identifiers |
+| `error` | Failure explanation, or null on success |
+
+`passed` requires CBMC exit zero, one JSON success status, a nonempty property
+list containing an entry `ensures` assertion, and every property successful.
+Counterexamples, incomplete unwinding, missing or malformed evidence, and
+unknown property results fail verification. AcTa exits nonzero on verification
+failure, including through the legacy `-acta-run-cbmc` interface. When execution
+reaches the plugin, report mode also writes an `error` report for generation or
+execution errors; Frama-C errors before the plugin runs may leave no report.
+Consumers should clear old reports before each invocation, check the process
+exit status, and validate the report version and requested target.
+
 ## Regression Tests
+
+The regression runner requires Frama-C, CBMC and Python 3 on `PATH`.
 
 Run the AcTa regression suite with:
 

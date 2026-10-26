@@ -13,6 +13,7 @@ bug-reports: "https://github.com/rse-verification/AcTa/issues"
 depends: [
   "dune" {>= "3.13"}
   "ocaml" {>= "4.14"}
+  "yojson"
   "frama-c" {>= "31" & < "32"}
   "odoc" {with-doc}
 ]

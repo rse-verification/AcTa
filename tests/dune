@@ -2,6 +2,7 @@
  (alias runtest)
  (deps
   run_regression_tests.sh
+  report_tests.py
   basic/simple.c
   basic/func_arguments.c
   basic/implies.c

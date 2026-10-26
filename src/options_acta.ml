@@ -55,6 +55,30 @@ module Enabled = Self.False
     let help = "Enable AcTa harness generation."
   end)
 
+module ReportFile = Self.String
+  (struct
+    let option_name = "-acta-report"
+    let default = ""
+    let arg_name = "report_file"
+    let help = "Write a versioned JSON verification report (requires -acta-run-cbmc)."
+  end)
+
+module CbmcArguments = Self.String
+  (struct
+    let option_name = "-acta-cbmc-args"
+    let default = "[]"
+    let arg_name = "json_array"
+    let help = "Additional CBMC arguments as a JSON array of strings, for -acta-report."
+  end)
+
+module CbmcUnwind = Self.Int
+  (struct
+    let option_name = "-acta-cbmc-unwind"
+    let default = 10
+    let arg_name = "bound"
+    let help = "Positive loop bound for -acta-report; unwinding assertions remain enabled."
+  end)
+
 module Run_cbmc = Self.False
   (struct
     let option_name = "-acta-run-cbmc"
