@@ -122,12 +122,14 @@ Or invoke the runner directly:
 bash tests/run_regression_tests.sh _build/default/src/Acta.cmxs
 ```
 
-The current suite is under `tests/basic/` and mirrors Saida's oracle-based
-style:
+The harness cases under `tests/basic/` mirror Saida's oracle-based style:
 
 - `tests/basic/*.c`: input programs.
 - `tests/basic/oracle/*.out.c`: expected generated harness output.
 - `tests/basic/oracle/*.cbmc.result`: expected CBMC result markers.
+
+`tests/report/report_tests.py` checks the JSON report interface and failure
+handling with real CBMC and deliberately malformed output.
 
 ## Layout
 
