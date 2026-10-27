@@ -15,7 +15,8 @@
  (name frama-c-acta)
  (depends
   (ocaml (>= 4.14))
-  (frama-c (and (>= 31) (< 32))))
+  yojson
+  (frama-c (and (>= 33) (< 34))))
  (synopsis "CBMC harness generation from ACSL entry contracts")
  (description
   "This plugin for the Frama-C platform reads the ACSL contract of an entry
