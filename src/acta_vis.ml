@@ -232,6 +232,34 @@ let is_old_like_label = function
   | _ ->
       false
 
+let should_inline_named_predicate li =
+  match li.l_body with
+  | LBpred _ -> true
+  | _ -> false
+
+let first_named_predicate pred =
+  Cil.extract_applied_logic_infos_from_predicate pred
+  |> Logic_info.Set.elements
+  |> List.find_opt should_inline_named_predicate
+
+let inline_named_predicate pred =
+  match first_named_predicate pred with
+  | None -> pred
+  | Some info ->
+      (match Inline.inline_predicate ~inline:should_inline_named_predicate pred with
+       | Some pred -> pred
+       | None ->
+           Kernel.abort ~current:true
+             "AcTa does not support named predicate '%s' at %a in harness generation yet"
+             info.l_var_info.lv_name
+             Cil_types.pp_location
+             pred.pred_loc)
+
+let inline_named_identified_predicate ip =
+  let statement = inline_named_predicate ip.ip_content.tp_statement in
+  if statement == ip.ip_content.tp_statement then ip
+  else { ip with ip_content = { ip.ip_content with tp_statement = statement } }
+
 let add_old_var_from_logic_var acc lv =
   match lv.lv_origin with
   | Some vi -> VarinfoSet.add vi acc
@@ -390,6 +418,8 @@ let make_harness_func fdec behavs =
         let posts = List.concat_map (fun b -> List.map snd b.b_post_cond) default_behaviors in
         (requires, posts)
   in
+  let assumes = List.map inline_named_identified_predicate assumes in
+  let asserts = List.map inline_named_identified_predicate asserts in
   let old_vars =
     List.fold_left
       (fun set ip -> old_vars_in_predicate set false ip.ip_content.tp_statement)

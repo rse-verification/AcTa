@@ -49,6 +49,12 @@ with tempfile.TemporaryDirectory(prefix="acta report ") as directory:
         completed, result = run(code)
         assert completed.returncode == 0 and result["status"] == "passed", (completed, result)
 
+    named = ("/*@ predicate positive(integer x) = x > 0; */\n"
+             "/*@ requires positive(x); ensures \\result == x; */\n"
+             "int compute(int x) { return x; }\n")
+    completed, result = run(named)
+    assert completed.returncode == 0 and result["status"] == "passed", (completed, result)
+
     completed, result = run(good.replace("\\result == x + 1", "\\result == x + 2"))
     assert completed.returncode != 0 and result["status"] == "failed", (completed, result)
     assert result["cbmc_exit_code"] == 10 and result["failed_properties"], result
@@ -61,9 +67,7 @@ with tempfile.TemporaryDirectory(prefix="acta report ") as directory:
 
     for code in ("int compute(int x) { return x; }\n",
                  "/*@ requires x >= 0; */\nint compute(int x) { return x; }\n",
-                 "/*@ requires \\aligned(&x, 4); ensures \\result == x; */\nint compute(int x) { return x; }\n",
-                 "/*@ predicate positive(integer x) = x > 0; */\n"
-                 "/*@ requires positive(x); ensures \\result == x; */\nint compute(int x) { return x; }\n"):
+                 "/*@ requires \\aligned(&x, 4); ensures \\result == x; */\nint compute(int x) { return x; }\n"):
         completed, result = run(code)
         assert completed.returncode != 0 and result["status"] == "error", (completed, result)
 
