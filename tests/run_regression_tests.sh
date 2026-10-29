@@ -44,6 +44,7 @@ run_cbmc_case() {
 run_harness_case simple main
 run_harness_case func_arguments start
 run_harness_case implies func
+run_harness_case named_predicate identity
 run_harness_case old_predicate main
 run_cbmc_case implies acta_harness_func
 python3 "$repo_root/tests/report/report_tests.py" "$plugin_path"

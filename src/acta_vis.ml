@@ -139,9 +139,10 @@ module HarnessPrinter = struct
           | TCast _
           | TAddrOf _
           | TStartOf _
-          | Tif _
           | Tnull ->
               super#term_node fmt t
+          | Tif _ ->
+              Format.fprintf fmt "(%a)" super#term_node t
           | Tat (inner, label) ->
               if self#is_old_like_label label then
                 self#with_old_context_term (self#term fmt) inner
@@ -174,8 +175,11 @@ module HarnessPrinter = struct
               super#predicate_node fmt (Prel (Rneq, Cil.lone (), Cil.lzero ()))
           | Pfalse ->
               super#predicate_node fmt (Prel (Rneq, Cil.lzero (), Cil.lzero ()))
-          | ((Pnot _ | Pand _ | Por _ | Prel _ | Pif _) as pn) ->
+          | ((Pnot _ | Pand _ | Por _ | Prel _) as pn) ->
               super#predicate_node fmt pn
+          | Pif _ as pn ->
+              (* Inlining can wrap conditionals in labels that hide their precedence. *)
+              Format.fprintf fmt "(%a)" super#predicate_node pn
           | Pxor (p1, p2) ->
               self#pred_bin_op fmt p1 p2 "!="
           | Pimplies (p1, p2) ->
@@ -231,6 +235,34 @@ let is_old_like_label = function
       true
   | _ ->
       false
+
+let should_inline_named_predicate li =
+  match li.l_body with
+  | LBpred _ -> true
+  | _ -> false
+
+let first_named_predicate pred =
+  Cil.extract_applied_logic_infos_from_predicate pred
+  |> Logic_info.Set.elements
+  |> List.find_opt should_inline_named_predicate
+
+let inline_named_predicate pred =
+  match first_named_predicate pred with
+  | None -> pred
+  | Some info ->
+      (match Inline.inline_predicate ~inline:should_inline_named_predicate pred with
+       | Some pred -> pred
+       | None ->
+           Kernel.abort ~current:true
+             "AcTa does not support named predicate '%s' at %a in harness generation yet"
+             info.l_var_info.lv_name
+             Cil_types.pp_location
+             pred.pred_loc)
+
+let inline_named_identified_predicate ip =
+  let statement = inline_named_predicate ip.ip_content.tp_statement in
+  if statement == ip.ip_content.tp_statement then ip
+  else { ip with ip_content = { ip.ip_content with tp_statement = statement } }
 
 let add_old_var_from_logic_var acc lv =
   match lv.lv_origin with
@@ -390,6 +422,8 @@ let make_harness_func fdec behavs =
         let posts = List.concat_map (fun b -> List.map snd b.b_post_cond) default_behaviors in
         (requires, posts)
   in
+  let assumes = List.map inline_named_identified_predicate assumes in
+  let asserts = List.map inline_named_identified_predicate asserts in
   let old_vars =
     List.fold_left
       (fun set ip -> old_vars_in_predicate set false ip.ip_content.tp_statement)
