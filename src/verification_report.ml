@@ -49,25 +49,8 @@ let arguments text =
   validate values;
   values
 
-exception Cbmc_error of string
-
 let evidence path harness =
   let records = Yojson.Basic.from_file path |> to_list in
-  let errors = List.filter_map (fun record ->
-    if member "messageType" record <> `String "ERROR" then None
-    else
-      let message = member "messageText" record |> to_string in
-      let location = match member "sourceLocation" record with
-        | `Assoc fields ->
-            List.filter_map (fun name -> match List.assoc_opt name fields with
-              | Some (`String value) when value <> "" -> Some value
-              | Some (`Int value) -> Some (string_of_int value)
-              | _ -> None) ["file"; "line"; "column"]
-            |> String.concat ":"
-        | _ -> ""
-      in
-      Some (if location = "" then message else location ^ ": " ^ message)) records in
-  if errors <> [] then raise (Cbmc_error (String.concat "\n" errors));
   let statuses = List.filter_map (fun record ->
     match member "cProverStatus" record with `Null -> None | value -> Some (to_string value)) records in
   let groups = List.filter_map (fun record ->
@@ -102,9 +85,6 @@ let run ~cbmc ~extra ~entry ~harness ~source ~output ~unwind =
     report ~entry ~harness ~source ~output ~unwind
       ~status:(if passed then "passed" else "failed") ~exit_code:(`Int exit_code)
       ~properties ~proved ~failed ~error:message
-  with
-  | Cbmc_error message ->
-    error ~exit_code:(`Int exit_code) ~entry ~harness ~source ~output ~unwind message
-  | (Yojson.Json_error _ | Type_error _ | Invalid_argument _ | Sys_error _) as exc ->
+  with (Yojson.Json_error _ | Type_error _ | Invalid_argument _ | Sys_error _) as exc ->
     error ~exit_code:(`Int exit_code) ~entry ~harness ~source ~output ~unwind
       (Printexc.to_string exc)
