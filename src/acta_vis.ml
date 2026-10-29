@@ -139,9 +139,10 @@ module HarnessPrinter = struct
           | TCast _
           | TAddrOf _
           | TStartOf _
-          | Tif _
           | Tnull ->
               super#term_node fmt t
+          | Tif _ ->
+              Format.fprintf fmt "(%a)" super#term_node t
           | Tat (inner, label) ->
               if self#is_old_like_label label then
                 self#with_old_context_term (self#term fmt) inner
@@ -174,8 +175,11 @@ module HarnessPrinter = struct
               super#predicate_node fmt (Prel (Rneq, Cil.lone (), Cil.lzero ()))
           | Pfalse ->
               super#predicate_node fmt (Prel (Rneq, Cil.lzero (), Cil.lzero ()))
-          | ((Pnot _ | Pand _ | Por _ | Prel _ | Pif _) as pn) ->
+          | ((Pnot _ | Pand _ | Por _ | Prel _) as pn) ->
               super#predicate_node fmt pn
+          | Pif _ as pn ->
+              (* Inlining can wrap conditionals in labels that hide their precedence. *)
+              Format.fprintf fmt "(%a)" super#predicate_node pn
           | Pxor (p1, p2) ->
               self#pred_bin_op fmt p1 p2 "!="
           | Pimplies (p1, p2) ->
